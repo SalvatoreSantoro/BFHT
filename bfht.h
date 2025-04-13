@@ -3,6 +3,13 @@
 
 #include <stdbool.h>
 
+enum{
+    BFHT_OK=0,
+    BFHT_EOOM,
+    BFHT_INS_WRN,
+    BFHT_DEL_WRN,
+};
+
 /**************** TUNABLES *****************/
 
 /****************** SIZE *******************/
