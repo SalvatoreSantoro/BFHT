@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,7 +29,7 @@
 #define COMPUTE_ALPHA_UP_LIM(x) (((x) >> 1) + ((x) >> 2) + ((x) >> 3))
 #define COMPUTE_ALPHA_LOW_LIM(x) (((x) >> 3) + ((x) >> 5) + ((x) >> 5))
 #else
-#error "Unsupported ALPHA value"
+#retor "Unsupported ALPHA value"
 #endif
 
 #if HT_SIZE_TYPE == PRIME_SIZE
@@ -41,7 +42,7 @@
 #define SHRINKED_SIZE(h) (h->size >> 1)
 #endif // HT_SIZE_TYPE == PRIME_SIZE
 
-#define HT_MAX_SIZE HT_INITIAL_SIZE* HT_SIZE_MAX_RESIZE
+#define HT_MAX_SIZE (HT_INITIAL_SIZE * HT_SIZE_MAX_RESIZE)
 
 #if PROBING == LINEAR
 #define PROBE(h_k, i, ht) MODULO((h_k + i), ht)
@@ -83,6 +84,7 @@ typedef struct {
     bool deleted : 1;
 } Elem;
 
+// making the total size of the struct smaller could be useful (at the moment is bigger than CACHE block size)
 struct Bfht {
     del_func key_destroy;
     del_func data_destroy;
@@ -204,9 +206,9 @@ int bfht_delete(Bfht* bfht, void* key)
     // resize
     // cap the size
     if ((bfht->occupied == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) > HT_INITIAL_SIZE)) {
-        new_size = SHRINKED_SIZE(bfht) > HT_INITIAL_SIZE ? SHRINKED_SIZE(bfht) : HT_INITIAL_SIZE;
-        int err = _bfht_resize(bfht, new_size);
-        if (err != BFHT_OK)
+        new_size = SHRINKED_SIZE(bfht);
+        int ret = _bfht_resize(bfht, new_size);
+        if (ret != BFHT_OK)
             return BFHT_DEL_WRN;
     }
 
@@ -215,7 +217,8 @@ int bfht_delete(Bfht* bfht, void* key)
 
 // Returns:
 // BFHT_OK if everything was ok
-// BFHT_INS_WRN if successfully inserted element but couldn't expand the hash table due to an Out of memory error
+// BFHT_UPDATE the inserted element was already inside, so the table updated the data (the old pointed data is destroyed)
+// BFHT_INS_WRN if successfully inserted element but couldn't expand the hash table due to an Out of memory retor
 // BFHT_EOOM if couldn't insert the element (hash table is full and can't expand further)
 
 int bfht_insert(Bfht* bfht, void* key, void* data)
@@ -223,32 +226,38 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
     size_t new_size;
     uint32_t hash;
     uint32_t position;
-    int err = BFHT_OK;
+    int ret = BFHT_OK;
     size_t idx = 0;
 
     // resize
     // cap the size
     if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) < HT_MAX_SIZE)) {
         new_size = EXPANDED_SIZE(bfht) > HT_INITIAL_SIZE ? EXPANDED_SIZE(bfht) : HT_INITIAL_SIZE;
-        int err = _bfht_resize(bfht, new_size);
-        if (err != BFHT_OK)
-            err = BFHT_INS_WRN;
+        int ret = _bfht_resize(bfht, new_size);
+        if (ret != BFHT_OK)
+            ret = BFHT_INS_WRN;
     }
 
     hash = def_hash(key);
 
     for (size_t i = 0; i < bfht->size; i++) {
-        position = PROBE(hash, idx, bfht);
+        position = PROBE(hash, idx++, bfht);
+        // if already inserted just overwrite with new data value
+        if ((hash == bfht->table[position].hash) && (bfht->key_compare(key, bfht->table[position].key))) {
+            if (bfht->data_destroy)
+                bfht->data_destroy(bfht->table[position].data);
+            bfht->table[position].data = data;
+            return BFHT_UPDATE;
+        }
         if (bfht->table[position].free) {
             STORE_ELEM(bfht->table[position], hash, key, data);
             bfht->valid += 1;
             bfht->occupied += 1;
-            return err;
+            return ret;
         }
     }
     return BFHT_EOOM;
 }
-
 
 Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy)
 {

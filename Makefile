@@ -1,7 +1,7 @@
 ### VARIABLES & FLAGS
 
+NAME:=bfht
 # useful: -Wpadded
-
 
 CC:=gcc
 DEFAULT_FLAGS:=-std=c99 -O2 -Wall -Wextra -Werror -pedantic
@@ -12,11 +12,11 @@ TEST_LDFLAGS:=-no-pie
 
 
 ### DIRECTORIES
-SRC_DIR := $(ALLOCATOR)/src
-BUILD_DIR := $(ALLOCATOR)/build
-TEST_DIR := $(ALLOCATOR)/test
-LIB_NAME := $(ALLOCATOR).a
-LIB_NAME_DEBUG := $(ALLOCATOR)_debug.a
+SRC_DIR := src
+BUILD_DIR := build
+TEST_DIR := test
+LIB_NAME := $(NAME).a
+LIB_NAME_DEBUG := $(NAME)_debug.a
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))

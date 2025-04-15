@@ -3,10 +3,11 @@
 
 #include <stdbool.h>
 
-enum{
-    BFHT_OK=0,
+enum {
+    BFHT_OK = 0,
     BFHT_EOOM,
     BFHT_INS_WRN,
+    BFHT_UPDATE,
     BFHT_DEL_WRN,
 };
 
@@ -21,7 +22,7 @@ enum{
 
 #define HT_INITIAL_SIZE 256
 // HT_MAX_SIZE = HT_INITIAL_SIZE * HT_SIZE_MAX_RESIZE
-#define HT_SIZE_MAX_RESIZE 10
+#define HT_SIZE_MAX_RESIZE 100000
 
 /****************** PROBING *****************/
 
@@ -49,5 +50,15 @@ enum{
 typedef struct Bfht Bfht;
 typedef bool (*cmp_func)(const void*, const void*);
 typedef void (*del_func)(void*);
+
+int bfht_insert(Bfht* bfht, void* key, void* data);
+
+int bfht_delete(Bfht* bfht, void* key);
+
+void* bfht_find(Bfht* bfht, void* key);
+
+Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy);
+
+void bfht_destroy(Bfht* bfht);
 
 #endif
