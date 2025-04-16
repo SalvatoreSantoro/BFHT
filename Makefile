@@ -68,7 +68,7 @@ $(BUILD_DIR)/%.t.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 ### SANITIZERS
 .PHONY: valgrind
 valgrind: test
-	valgrind --tool=memcheck --leak-check=full --track-origins=yes -s $(BUILD_DIR)/test_binary
+	valgrind --tool=memcheck --leak-check=full --track-origins=yes --main-stacksize=2000000000 -s $(BUILD_DIR)/test_binary
 
 .PHONY: asan
 asan: $(TEST_OBJS)

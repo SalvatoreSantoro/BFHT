@@ -7,56 +7,58 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <time.h>
+#include <unistd.h>
 
-static char** words;
-static char* file;
-static size_t file_size;
-static size_t words_size = 1024;
-static size_t words_read = 0;
+static char** words_vec;
+static char* file_content;
+static size_t words_vec_len = 0;
 
 void load_words(void)
 {
     char** tmp;
     char* token;
+    char* file;
     struct stat fs;
     int fd;
-    char* file_content = NULL;
+    size_t words_vec_size = 256;
+    size_t file_size;
+
     char* delim = "  \n,.!\t:\"()\'-$";
 
-    fd = open("words/1", O_RDONLY);
+    fd = open("words/6", O_RDONLY);
     fstat(fd, &fs);
-
     file_size = fs.st_size;
 
-    file = mmap(NULL, fs.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
+    file = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    file_content = malloc(file_size + 1);
+    memcpy(file_content, file, file_size);
+    file_content[file_size] = '\0';
 
-    file_content = malloc(fs.st_size + 1);
-    memcpy(file_content, file, fs.st_size);
-    file_content[fs.st_size] = '\0';
-
-    words = malloc(words_size * (sizeof(char*)));
+    words_vec = malloc(words_vec_size * (sizeof(char*)));
     token = strtok(file_content, delim);
 
     while (token != NULL) {
-        if (words_read == words_size) {
-            words_size *= 2;
-            tmp = realloc(words, words_size * sizeof(char*));
+        if (words_vec_len == words_vec_size) {
+            words_vec_size *= 2;
+            tmp = realloc(words_vec, words_vec_size * sizeof(char*));
             if (tmp == NULL) {
                 fprintf(stderr, "WORDS BUFFER OUT OF MEMORY");
                 exit(-2);
             }
-            words = tmp;
+            words_vec = tmp;
         }
-        words[words_read] = token;
-        words_read += 1;
+        words_vec[words_vec_len] = token;
+        words_vec_len += 1;
         token = strtok(NULL, delim);
     }
+    munmap(file, file_size);
 }
 
 void destroy_words(void)
 {
-    munmap(file, file_size);
-    free(words);
+    free(file_content);
+    free(words_vec);
 }
 
 bool key_cmp(const void* str1, const void* str2)
@@ -66,31 +68,56 @@ bool key_cmp(const void* str1, const void* str2)
 
 int main(void)
 {
-    Bfht* bfht = bfht_create(key_cmp, NULL, NULL);
     load_words();
-    words_read = 1000;
-    printf("%ld words loaded\n", words_read);
 
-    int* word_count = malloc(words_read);
-    int* word_count_mock = malloc(words_read);
-    memset(word_count, 1, words_read);
-    int* p = NULL;
+    int* p;
+    int* values = malloc(sizeof(int) * words_vec_len);
+    int* mock_counts = malloc(sizeof(int) * words_vec_len);
 
-    for (size_t i = 0; i < words_read; i++)
-        if (bfht_insert(bfht, words[i], &word_count[i]) == BFHT_UPDATE){}
-
-    for (size_t i = 0; i < words_read; i++){
-        p = bfht_find(bfht, words[i]);
-        if (p != NULL)
-            words[i]
-
+    for (size_t i = 0; i < words_vec_len; i++) {
+        mock_counts[i] = 0;
+        for (size_t j = 0; j < words_vec_len; j++) {
+            if (!strcmp(words_vec[i], words_vec[j]))
+                mock_counts[i] += 1;
+        }
     }
 
-        for (size_t i = 0; i < words_read; i++)
-            bfht_delete(bfht, words[i]);
+    if (values == NULL)
+        printf("OOM\n");
 
-    free(word_count);
+    for (size_t i = 0; i < words_vec_len; i++)
+        values[i] = 0;
+
+    printf("Loading %ld words.\n", words_vec_len);
+
+    Bfht* bfht = bfht_create(key_cmp, NULL, NULL);
+
+
+    // insert all single occurrences (the data location for repeated occurrences will be overwritten)
+    for (size_t i = 0; i < words_vec_len; i++)
+        bfht_insert(bfht, words_vec[i], &values[i]);
+
+    // count the occurrences of the words
+    for (size_t i = 0; i < words_vec_len; i++) {
+        p = bfht_find(bfht, words_vec[i]);
+        if (p != NULL)
+            *p += 1;
+    }
+
+
+    // compare with brute-force approach to verify correctness
+    for (size_t i = 0; i < words_vec_len; i++) {
+        p = bfht_find(bfht, words_vec[i]);
+        assert((*p) == mock_counts[i]);
+    }
+
+    for (size_t i = 0; i < words_vec_len; i++)
+        bfht_delete(bfht, words_vec[i]);
+
+    printf("Hash Table test passed!\n");
+
+    free(mock_counts);
+    free(values);
     destroy_words();
     bfht_destroy(bfht);
-    return 0;
 }

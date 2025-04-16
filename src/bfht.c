@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #if ALPHA == 125
 #define COMPUTE_ALPHA_UP_LIM(x) ((x) >> 3)
@@ -63,9 +64,10 @@
 uint32_t def_hash(const void* key)
 {
     assert(key != NULL);
+
+    int c;
     uint32_t hash = 5381;
     const char* p = (char*)key;
-    int c;
 
     while ((c = *p++)) {
         if (isupper(c)) {
@@ -129,13 +131,19 @@ static int _bfht_resize(Bfht* bfht, size_t new_size)
     count = 0;
 
     for (size_t i = 0; i < old_size; i++) {
-        if (bfht->table[i].free || bfht->table[i].deleted)
-            continue;
         // stop cicle if moved all the "valid"(effectively occupied) elems
         if (count == bfht->valid)
             break;
+        if (bfht->table[i].free || bfht->table[i].deleted)
+            continue;
 
         idx = 0;
+
+        // this cycle assumes that the new size is already in bfht but
+        // the element must be transfered to temp_elems,
+        // the cycle always end because we're assuming that we need to move
+        // elements in a bigger array, so we will eventually find
+        // some free spaces (break condition)
         while (1) {
             position = PROBE(bfht->table[i].hash, idx++, bfht);
             // move the old elem in the new array
@@ -165,10 +173,10 @@ static void* _bfht_find_elem(Bfht* bfht, void* key)
     for (size_t i = 0; i < bfht->size; i++) {
         position = PROBE(hash, idx++, bfht);
         start_elem = &bfht->table[position];
-        if (start_elem->deleted)
-            continue;
         if (start_elem->free)
             break;
+        if (start_elem->deleted)
+            continue;
         if ((hash == start_elem->hash) && (bfht->key_compare(key, start_elem->key)))
             return start_elem;
     }
@@ -189,8 +197,9 @@ int bfht_delete(Bfht* bfht, void* key)
     size_t new_size;
 
     Elem* elem = _bfht_find_elem(bfht, key);
-    if (elem == NULL)
+    if (elem == NULL) {
         return BFHT_OK;
+    }
 
     if (bfht->data_destroy)
         bfht->data_destroy(elem->data);
@@ -205,7 +214,7 @@ int bfht_delete(Bfht* bfht, void* key)
 
     // resize
     // cap the size
-    if ((bfht->occupied == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) > HT_INITIAL_SIZE)) {
+    if ((bfht->valid == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) >= HT_INITIAL_SIZE)) {
         new_size = SHRINKED_SIZE(bfht);
         int ret = _bfht_resize(bfht, new_size);
         if (ret != BFHT_OK)
@@ -242,18 +251,18 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
 
     for (size_t i = 0; i < bfht->size; i++) {
         position = PROBE(hash, idx++, bfht);
+        if (bfht->table[position].free || bfht->table[position].deleted) {
+            STORE_ELEM(bfht->table[position], hash, key, data);
+            bfht->valid += 1;
+            bfht->occupied += 1;
+            return ret;
+        }
         // if already inserted just overwrite with new data value
         if ((hash == bfht->table[position].hash) && (bfht->key_compare(key, bfht->table[position].key))) {
             if (bfht->data_destroy)
                 bfht->data_destroy(bfht->table[position].data);
             bfht->table[position].data = data;
             return BFHT_UPDATE;
-        }
-        if (bfht->table[position].free) {
-            STORE_ELEM(bfht->table[position], hash, key, data);
-            bfht->valid += 1;
-            bfht->occupied += 1;
-            return ret;
         }
     }
     return BFHT_EOOM;
@@ -282,6 +291,8 @@ Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_dest
 
 void bfht_destroy(Bfht* bfht)
 {
-    free(bfht->table);
+    if (bfht->table != NULL) {
+        free(bfht->table);
+    }
     free(bfht);
 }
