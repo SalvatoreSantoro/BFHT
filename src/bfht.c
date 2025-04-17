@@ -165,20 +165,20 @@ static int _bfht_resize(Bfht* bfht, size_t new_size)
 
 static void* _bfht_find_elem(Bfht* bfht, void* key)
 {
-    Elem* start_elem;
+    Elem* elem;
     int position;
     size_t idx = 0;
     uint32_t hash = def_hash(key);
 
     for (size_t i = 0; i < bfht->size; i++) {
         position = PROBE(hash, idx++, bfht);
-        start_elem = &bfht->table[position];
-        if (start_elem->free)
+        elem = &bfht->table[position];
+        if (elem->free)
             break;
-        if (start_elem->deleted)
+        if (elem->deleted)
             continue;
-        if ((hash == start_elem->hash) && (bfht->key_compare(key, start_elem->key)))
-            return start_elem;
+        if ((hash == elem->hash) && (bfht->key_compare(key, elem->key)))
+            return elem;
     }
 
     return NULL;
@@ -192,9 +192,14 @@ void* bfht_find(Bfht* bfht, void* key)
     return NULL;
 }
 
-int bfht_delete(Bfht* bfht, void* key)
+int bfht_remove(Bfht* bfht, void* key)
 {
     size_t new_size;
+
+    /* static int count = 0; */
+    /* count += 1; */
+    /* printf("DEL COUNT: %d\n", count); */
+
 
     Elem* elem = _bfht_find_elem(bfht, key);
     if (elem == NULL) {
@@ -207,7 +212,6 @@ int bfht_delete(Bfht* bfht, void* key)
     if (bfht->key_destroy)
         bfht->key_destroy(elem->key);
 
-    elem->free = true,
     elem->deleted = true,
 
     bfht->valid -= 1;
@@ -217,6 +221,7 @@ int bfht_delete(Bfht* bfht, void* key)
     if ((bfht->valid == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) >= HT_INITIAL_SIZE)) {
         new_size = SHRINKED_SIZE(bfht);
         int ret = _bfht_resize(bfht, new_size);
+        //printf("DEL RESIZE: %ld\n", new_size);
         if (ret != BFHT_OK)
             return BFHT_DEL_WRN;
     }
@@ -237,12 +242,17 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
     uint32_t position;
     int ret = BFHT_OK;
     size_t idx = 0;
+    
+    /* static int count = 0; */
+    /* count += 1; */
+    /* printf("INS COUNT: %d\n", count); */
 
     // resize
     // cap the size
     if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) < HT_MAX_SIZE)) {
         new_size = EXPANDED_SIZE(bfht) > HT_INITIAL_SIZE ? EXPANDED_SIZE(bfht) : HT_INITIAL_SIZE;
         int ret = _bfht_resize(bfht, new_size);
+        //printf("INS RESIZE: %ld\n", new_size);
         if (ret != BFHT_OK)
             ret = BFHT_INS_WRN;
     }
@@ -257,6 +267,7 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
             bfht->occupied += 1;
             return ret;
         }
+
         // if already inserted just overwrite with new data value
         if ((hash == bfht->table[position].hash) && (bfht->key_compare(key, bfht->table[position].key))) {
             if (bfht->data_destroy)

@@ -26,7 +26,7 @@ void load_words(void)
 
     char* delim = "  \n,.!\t:\"()\'-$";
 
-    fd = open("words/6", O_RDONLY);
+    fd = open("words/dataset", O_RDONLY);
     fstat(fd, &fs);
     file_size = fs.st_size;
 
@@ -68,11 +68,26 @@ bool key_cmp(const void* str1, const void* str2)
 
 int main(void)
 {
-    load_words();
-
     int* p;
-    int* values = malloc(sizeof(int) * words_vec_len);
-    int* mock_counts = malloc(sizeof(int) * words_vec_len);
+    int* values;
+    int* mock_counts;
+    Bfht* bfht;
+
+    load_words();
+    printf("Loading %ld words.\n", words_vec_len);
+
+    values = malloc(sizeof(int) * words_vec_len);
+    mock_counts = malloc(sizeof(int) * words_vec_len);
+
+    if (values == NULL) {
+        printf("OOM\n");
+        return 0;
+    }
+
+    if (mock_counts == NULL) {
+        printf("OOM\n");
+        return 0;
+    }
 
     for (size_t i = 0; i < words_vec_len; i++) {
         mock_counts[i] = 0;
@@ -82,16 +97,10 @@ int main(void)
         }
     }
 
-    if (values == NULL)
-        printf("OOM\n");
-
     for (size_t i = 0; i < words_vec_len; i++)
         values[i] = 0;
 
-    printf("Loading %ld words.\n", words_vec_len);
-
-    Bfht* bfht = bfht_create(key_cmp, NULL, NULL);
-
+    bfht = bfht_create(key_cmp, NULL, NULL);
 
     // insert all single occurrences (the data location for repeated occurrences will be overwritten)
     for (size_t i = 0; i < words_vec_len; i++)
@@ -104,7 +113,6 @@ int main(void)
             *p += 1;
     }
 
-
     // compare with brute-force approach to verify correctness
     for (size_t i = 0; i < words_vec_len; i++) {
         p = bfht_find(bfht, words_vec[i]);
@@ -112,7 +120,7 @@ int main(void)
     }
 
     for (size_t i = 0; i < words_vec_len; i++)
-        bfht_delete(bfht, words_vec[i]);
+        bfht_remove(bfht, words_vec[i]);
 
     printf("Hash Table test passed!\n");
 

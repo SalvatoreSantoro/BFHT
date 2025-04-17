@@ -20,7 +20,7 @@ enum {
 
 #define HT_SIZE_TYPE POW_2_SIZE
 
-#define HT_INITIAL_SIZE 256
+#define HT_INITIAL_SIZE 8 
 // HT_MAX_SIZE = HT_INITIAL_SIZE * HT_SIZE_MAX_RESIZE
 #define HT_SIZE_MAX_RESIZE 100000
 
@@ -53,7 +53,7 @@ typedef void (*del_func)(void*);
 
 int bfht_insert(Bfht* bfht, void* key, void* data);
 
-int bfht_delete(Bfht* bfht, void* key);
+int bfht_remove(Bfht* bfht, void* key);
 
 void* bfht_find(Bfht* bfht, void* key);
 
