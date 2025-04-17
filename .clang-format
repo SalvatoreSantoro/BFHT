@@ -1,0 +1,16 @@
+# Ensures preprocessor directives are indented like normal code
+IndentPPDirectives: BeforeHash
+
+# Adds space between # and the directive for readability
+SpaceAfterCStyleCast: true
+
+# Control alignment of consecutive macro definitions
+AlignConsecutiveMacros: true
+
+
+ColumnLimit: 100  # or even higher like 160 or 200
+
+# Improves the readability of nested preprocessor conditions
+IndentWidth: 4
+TabWidth: 4
+

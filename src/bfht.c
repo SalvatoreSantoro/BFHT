@@ -1,4 +1,5 @@
 #include "../bfht.h"
+#include "macros.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stddef.h>
@@ -8,66 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#if ALPHA == 125
-#define COMPUTE_ALPHA_UP_LIM(x) ((x) >> 3)
-#define COMPUTE_ALPHA_LOW_LIM(x) ((x) >> 5)
-#elif ALPHA == 250
-#define COMPUTE_ALPHA_UP_LIM(x) ((x) >> 2)
-#define COMPUTE_ALPHA_LOW_LIM(x) ((x) >> 4)
-#elif ALPHA == 375
-#define COMPUTE_ALPHA_UP_LIM(x) (((x) >> 2) + ((x) >> 3))
-#define COMPUTE_ALPHA_LOW_LIM(x) ((x) >> 4) + ((x) >> 5)
-#elif ALPHA == 500
-#define COMPUTE_ALPHA_UP_LIM(x) ((x) >> 1)
-#define COMPUTE_ALPHA_LOW_LIM(x) ((x) >> 3)
-#elif ALPHA == 625
-#define COMPUTE_ALPHA_UP_LIM(x) (((x) >> 1) + ((x) >> 3))
-#define COMPUTE_ALPHA_LOW_LIM(x) (((x) >> 3) + ((x) >> 5))
-#elif ALPHA == 750
-#define COMPUTE_ALPHA_UP_LIM(x) (((x) >> 1) + ((x) >> 2))
-#define COMPUTE_ALPHA_LOW_LIM(x) (((x) >> 3) + ((x) >> 4))
-#elif ALPHA == 875
-#define COMPUTE_ALPHA_UP_LIM(x) (((x) >> 1) + ((x) >> 2) + ((x) >> 3))
-#define COMPUTE_ALPHA_LOW_LIM(x) (((x) >> 3) + ((x) >> 5) + ((x) >> 5))
-#else
-#retor "Unsupported ALPHA value"
-#endif
-
-#if HT_SIZE_TYPE == PRIME_SIZE
-#define MODULO(h, t) (h % t->size)
-#define EXPANDED_SIZE(h)
-#define SHRINKED_SIZE(h)
-#elif HT_SIZE_TYPE == POW_2_SIZE
-#define MODULO(h, t) (h & t->size_mask)
-#define EXPANDED_SIZE(h) (h->size << 1)
-#define SHRINKED_SIZE(h) (h->size >> 1)
-#endif // HT_SIZE_TYPE == PRIME_SIZE
-
-#define HT_MAX_SIZE (HT_INITIAL_SIZE * HT_SIZE_MAX_RESIZE)
-
-#if PROBING == LINEAR
-#define PROBE(h_k, i, ht) MODULO((h_k + i), ht)
-#elif
-#include <math.h>
-#define PROBE(h_k, i, ht) MODULO((h_k + i + pow(i, 2)), ht)
-#endif
-
-#define STORE_ELEM(e, h, k, d) \
-    do {                       \
-        e.free = false;        \
-        e.deleted = false;     \
-        e.hash = h;            \
-        e.key = k;             \
-        e.data = d;            \
-    } while (0)
-
-uint32_t def_hash(const void* key)
-{
+uint32_t def_hash(const void *key) {
     assert(key != NULL);
 
     int c;
     uint32_t hash = 5381;
-    const char* p = (char*)key;
+    const char *p = (char *) key;
 
     while ((c = *p++)) {
         if (isupper(c)) {
@@ -79,32 +26,37 @@ uint32_t def_hash(const void* key)
 }
 
 typedef struct {
-    void* key;
-    void* data;
+    void *key;
+    void *data;
     uint32_t hash;
     bool free : 1;
     bool deleted : 1;
 } Elem;
 
-// making the total size of the struct smaller could be useful (at the moment is bigger than CACHE block size)
+// making the total size of the struct smaller could be useful (at the moment is
+// bigger than CACHE block size)
 struct Bfht {
     del_func key_destroy;
     del_func data_destroy;
     cmp_func key_compare;
-    // if size is always a power of 2 it's faster to do modulo using a mask
-    size_t size_mask;
     size_t size;
     size_t occupied_upper_limit;
     size_t occupied_lower_limit;
     size_t valid;
     size_t occupied;
-    Elem* table;
+    Elem *table;
+    // according to type size settings we define
+    // variables useful for resizing of ht
+#ifdef PRIME_SIZE
+    int primes_pos;
+#else
+    size_t size_mask;
+#endif
 };
 
-static int _bfht_resize(Bfht* bfht, size_t new_size)
-{
+static int _bfht_resize(Bfht *bfht, size_t new_size) {
     size_t old_size;
-    Elem* temp_elems;
+    Elem *temp_elems;
     int position;
     size_t count;
     size_t idx;
@@ -121,11 +73,20 @@ static int _bfht_resize(Bfht* bfht, size_t new_size)
 
     old_size = bfht->size;
     bfht->size = new_size;
-    // only if size is power of 2
+
+#ifdef PRIME_SIZE
+    if (new_size > old_size)
+        bfht->primes_pos += 1;
+    else
+        bfht->primes_pos -= 1;
+#else
     bfht->size_mask = new_size - 1;
+#endif
+
     bfht->occupied_upper_limit = COMPUTE_ALPHA_UP_LIM(new_size);
     bfht->occupied_lower_limit = COMPUTE_ALPHA_LOW_LIM(new_size);
-    // reset "occupied" to valid, because we're effectively discarding "deleted" locations
+    // reset "occupied" to valid, because we're effectively discarding "deleted"
+    // locations
     bfht->occupied = bfht->valid;
 
     count = 0;
@@ -145,10 +106,12 @@ static int _bfht_resize(Bfht* bfht, size_t new_size)
         // elements in a bigger array, so we will eventually find
         // some free spaces (break condition)
         while (1) {
-            position = PROBE(bfht->table[i].hash, idx++, bfht);
+            position = PROBE(bfht->table[i].hash, idx, bfht);
+            idx += 1;
             // move the old elem in the new array
             if (temp_elems[position].free) {
-                STORE_ELEM(temp_elems[position], bfht->table[i].hash, bfht->table[i].key, bfht->table[i].data);
+                STORE_ELEM(temp_elems[position], bfht->table[i].hash, bfht->table[i].key,
+                           bfht->table[i].data);
                 count += 1;
                 break;
             }
@@ -163,15 +126,15 @@ static int _bfht_resize(Bfht* bfht, size_t new_size)
     return BFHT_OK;
 }
 
-static void* _bfht_find_elem(Bfht* bfht, void* key)
-{
-    Elem* elem;
+static void *_bfht_find_elem(Bfht *bfht, void *key) {
+    Elem *elem;
     int position;
     size_t idx = 0;
     uint32_t hash = def_hash(key);
 
     for (size_t i = 0; i < bfht->size; i++) {
-        position = PROBE(hash, idx++, bfht);
+        position = PROBE(hash, idx, bfht);
+        idx += 1;
         elem = &bfht->table[position];
         if (elem->free)
             break;
@@ -184,24 +147,21 @@ static void* _bfht_find_elem(Bfht* bfht, void* key)
     return NULL;
 }
 
-void* bfht_find(Bfht* bfht, void* key)
-{
-    Elem* elem = _bfht_find_elem(bfht, key);
+void *bfht_find(Bfht *bfht, void *key) {
+    Elem *elem = _bfht_find_elem(bfht, key);
     if (elem != NULL)
         return elem->data;
     return NULL;
 }
 
-int bfht_remove(Bfht* bfht, void* key)
-{
+int bfht_remove(Bfht *bfht, void *key) {
     size_t new_size;
 
     /* static int count = 0; */
     /* count += 1; */
     /* printf("DEL COUNT: %d\n", count); */
 
-
-    Elem* elem = _bfht_find_elem(bfht, key);
+    Elem *elem = _bfht_find_elem(bfht, key);
     if (elem == NULL) {
         return BFHT_OK;
     }
@@ -218,7 +178,7 @@ int bfht_remove(Bfht* bfht, void* key)
 
     // resize
     // cap the size
-    if ((bfht->valid == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) >= HT_INITIAL_SIZE)) {
+    if ((bfht->valid == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) >= HT_MIN_SIZE)) {
         new_size = SHRINKED_SIZE(bfht);
         int ret = _bfht_resize(bfht, new_size);
         //printf("DEL RESIZE: %ld\n", new_size);
@@ -231,26 +191,27 @@ int bfht_remove(Bfht* bfht, void* key)
 
 // Returns:
 // BFHT_OK if everything was ok
-// BFHT_UPDATE the inserted element was already inside, so the table updated the data (the old pointed data is destroyed)
-// BFHT_INS_WRN if successfully inserted element but couldn't expand the hash table due to an Out of memory retor
-// BFHT_EOOM if couldn't insert the element (hash table is full and can't expand further)
+// BFHT_UPDATE the inserted element was already inside, so the table updated the
+// data (the old pointed data is destroyed) BFHT_INS_WRN if successfully
+// inserted element but couldn't expand the hash table due to an Out of memory
+// retor BFHT_EOOM if couldn't insert the element (hash table is full and can't
+// expand further)
 
-int bfht_insert(Bfht* bfht, void* key, void* data)
-{
+int bfht_insert(Bfht *bfht, void *key, void *data) {
     size_t new_size;
     uint32_t hash;
     uint32_t position;
     int ret = BFHT_OK;
     size_t idx = 0;
-    
+
     /* static int count = 0; */
     /* count += 1; */
     /* printf("INS COUNT: %d\n", count); */
 
     // resize
     // cap the size
-    if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) < HT_MAX_SIZE)) {
-        new_size = EXPANDED_SIZE(bfht) > HT_INITIAL_SIZE ? EXPANDED_SIZE(bfht) : HT_INITIAL_SIZE;
+    if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) <= HT_MAX_SIZE)) {
+        new_size = EXPANDED_SIZE(bfht) > HT_MIN_SIZE ? EXPANDED_SIZE(bfht) : HT_MIN_SIZE;
         int ret = _bfht_resize(bfht, new_size);
         //printf("INS RESIZE: %ld\n", new_size);
         if (ret != BFHT_OK)
@@ -260,7 +221,8 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
     hash = def_hash(key);
 
     for (size_t i = 0; i < bfht->size; i++) {
-        position = PROBE(hash, idx++, bfht);
+        position = PROBE(hash, idx, bfht);
+        idx += 1;
         if (bfht->table[position].free || bfht->table[position].deleted) {
             STORE_ELEM(bfht->table[position], hash, key, data);
             bfht->valid += 1;
@@ -269,7 +231,8 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
         }
 
         // if already inserted just overwrite with new data value
-        if ((hash == bfht->table[position].hash) && (bfht->key_compare(key, bfht->table[position].key))) {
+        if ((hash == bfht->table[position].hash) &&
+            (bfht->key_compare(key, bfht->table[position].key))) {
             if (bfht->data_destroy)
                 bfht->data_destroy(bfht->table[position].data);
             bfht->table[position].data = data;
@@ -279,15 +242,19 @@ int bfht_insert(Bfht* bfht, void* key, void* data)
     return BFHT_EOOM;
 }
 
-Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy)
-{
-    Bfht* bfht = malloc(sizeof(Bfht));
+Bfht *bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy) {
+    Bfht *bfht = malloc(sizeof(Bfht));
     if (bfht == NULL)
         return NULL;
 
-    // the table starts empty and on the first insert there is the real allocation
+    // the table starts empty and on the first insert there is the real
+    // allocation
     bfht->size = 0;
+#ifdef PRIME_SIZE
+    bfht->primes_pos = 0;
+#else
     bfht->size_mask = 0;
+#endif
     bfht->occupied_upper_limit = 0;
     bfht->occupied_lower_limit = 0;
     bfht->occupied = 0;
@@ -300,8 +267,7 @@ Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_dest
     return bfht;
 }
 
-void bfht_destroy(Bfht* bfht)
-{
+void bfht_destroy(Bfht *bfht) {
     if (bfht->table != NULL) {
         free(bfht->table);
     }

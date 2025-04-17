@@ -15,50 +15,43 @@ enum {
 
 /****************** SIZE *******************/
 
-#define POW_2_SIZE 1
-#define PRIME_SIZE 0
+// if undefined as default power of 2 sizes are used
+#define PRIME_SIZE 1
 
-#define HT_SIZE_TYPE POW_2_SIZE
+// NEED TO BE A POWER OF 2 (IGNORED IF COMPILING WITH "PRIME_SIZE")
+#define HT_INITIAL_SIZE 256
 
-#define HT_INITIAL_SIZE 8 
-// HT_MAX_SIZE = HT_INITIAL_SIZE * HT_SIZE_MAX_RESIZE
-#define HT_SIZE_MAX_RESIZE 100000
+// RANGE 0-23
+#define HT_SIZE_MAX_GROWINGS 23
 
 /****************** PROBING *****************/
 
-#define LINEAR 1
-#define QUADRATIC 0
+// POSSIBLE VALUES: [LINEAR, QUADRATIC]
 
 #define PROBING LINEAR
-
 /***************** LOAD FACTOR **************/
 
-// use subpowers of 2 for faster computations when multiplying or dividing (shifts)
+// POSSIBLE VALUES: [125, 375, 500, 625, 75, 875] (they are intended as 0.125, 0.375 and so on)
 
-// #define ALPHA 125   // 0.125 * 1000
-// #define ALPHA 250   // 0.25
-// #define ALPHA 375   // 0.375
-#define ALPHA 500 // 0.5
-// #define ALPHA 625   // 0.625
-// #define ALPHA 750   // 0.75
-// #define ALPHA 875   // 0.875
+#define ALPHA 500
 
-/**************** RESIZE FACTOR *************/
 
+// CURRENTLY UNSUPPORTED
+// IT HAS NO EFFECT
 #define BETA 2
 
 typedef struct Bfht Bfht;
-typedef bool (*cmp_func)(const void*, const void*);
-typedef void (*del_func)(void*);
+typedef bool (*cmp_func)(const void *, const void *);
+typedef void (*del_func)(void *);
 
-int bfht_insert(Bfht* bfht, void* key, void* data);
+int bfht_insert(Bfht *bfht, void *key, void *data);
 
-int bfht_remove(Bfht* bfht, void* key);
+int bfht_remove(Bfht *bfht, void *key);
 
-void* bfht_find(Bfht* bfht, void* key);
+void *bfht_find(Bfht *bfht, void *key);
 
-Bfht* bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy);
+Bfht *bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_destroy);
 
-void bfht_destroy(Bfht* bfht);
+void bfht_destroy(Bfht *bfht);
 
 #endif
