@@ -16,25 +16,37 @@ enum {
 /****************** SIZE *******************/
 
 // if undefined as default power of 2 sizes are used
-#define PRIME_SIZE 1
+
+// POSSIBLE VALUES: [PRIMES, TWO_POWERS]
+#ifndef HT_SIZE_TYPE
+    #define HT_SIZE_TYPE TWO_POWERS
+#endif
 
 // NEED TO BE A POWER OF 2 (IGNORED IF COMPILING WITH "PRIME_SIZE")
-#define HT_INITIAL_SIZE 256
+#ifndef HT_INITIAL_SIZE
+    #define HT_INITIAL_SIZE 256
+#endif
 
 // RANGE 0-23
-#define HT_SIZE_MAX_GROWINGS 23
+#ifndef HT_SIZE_MAX_GROWINGS
+    #define HT_SIZE_MAX_GROWINGS 20
+#endif
 
 /****************** PROBING *****************/
 
 // POSSIBLE VALUES: [LINEAR, QUADRATIC]
 
-#define PROBING LINEAR
+#ifndef PROBING
+    #define PROBING LINEAR
+#endif
+
 /***************** LOAD FACTOR **************/
 
 // POSSIBLE VALUES: [125, 375, 500, 625, 75, 875] (they are intended as 0.125, 0.375 and so on)
 
-#define ALPHA 500
-
+#ifndef ALPHA
+    #define ALPHA 500
+#endif
 
 // CURRENTLY UNSUPPORTED
 // IT HAS NO EFFECT

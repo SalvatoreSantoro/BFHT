@@ -47,7 +47,7 @@ struct Bfht {
     Elem *table;
     // according to type size settings we define
     // variables useful for resizing of ht
-#ifdef PRIME_SIZE
+#if HT_SIZE_TYPE == PRIMES
     int primes_pos;
 #else
     size_t size_mask;
@@ -66,6 +66,8 @@ static int _bfht_resize(Bfht *bfht, size_t new_size) {
     if (temp_elems == NULL)
         return BFHT_EOOM;
 
+    // Could be fun to unroll this loop
+
     for (size_t i = 0; i < new_size; i++) {
         temp_elems[i].free = true;
         temp_elems[i].deleted = false;
@@ -74,7 +76,7 @@ static int _bfht_resize(Bfht *bfht, size_t new_size) {
     old_size = bfht->size;
     bfht->size = new_size;
 
-#ifdef PRIME_SIZE
+#if HT_SIZE_TYPE == PRIMES
     if (new_size > old_size)
         bfht->primes_pos += 1;
     else
@@ -110,8 +112,7 @@ static int _bfht_resize(Bfht *bfht, size_t new_size) {
             idx += 1;
             // move the old elem in the new array
             if (temp_elems[position].free) {
-                STORE_ELEM(temp_elems[position], bfht->table[i].hash, bfht->table[i].key,
-                           bfht->table[i].data);
+                STORE_ELEM(temp_elems[position], bfht->table[i].hash, bfht->table[i].key, bfht->table[i].data);
                 count += 1;
                 break;
             }
@@ -181,7 +182,7 @@ int bfht_remove(Bfht *bfht, void *key) {
     if ((bfht->valid == bfht->occupied_lower_limit) && (SHRINKED_SIZE(bfht) >= HT_MIN_SIZE)) {
         new_size = SHRINKED_SIZE(bfht);
         int ret = _bfht_resize(bfht, new_size);
-        //printf("DEL RESIZE: %ld\n", new_size);
+        // printf("DEL RESIZE: %ld\n", new_size);
         if (ret != BFHT_OK)
             return BFHT_DEL_WRN;
     }
@@ -208,12 +209,15 @@ int bfht_insert(Bfht *bfht, void *key, void *data) {
     /* count += 1; */
     /* printf("INS COUNT: %d\n", count); */
 
+    assert(data != NULL);
+    assert(key != NULL);
+
     // resize
     // cap the size
     if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) <= HT_MAX_SIZE)) {
         new_size = EXPANDED_SIZE(bfht) > HT_MIN_SIZE ? EXPANDED_SIZE(bfht) : HT_MIN_SIZE;
+        //printf("INS RESIZE: NEW %ld, OLD %ld, MAX %ld\n", new_size, bfht->size, HT_MAX_SIZE);
         int ret = _bfht_resize(bfht, new_size);
-        //printf("INS RESIZE: %ld\n", new_size);
         if (ret != BFHT_OK)
             ret = BFHT_INS_WRN;
     }
@@ -231,8 +235,7 @@ int bfht_insert(Bfht *bfht, void *key, void *data) {
         }
 
         // if already inserted just overwrite with new data value
-        if ((hash == bfht->table[position].hash) &&
-            (bfht->key_compare(key, bfht->table[position].key))) {
+        if ((hash == bfht->table[position].hash) && (bfht->key_compare(key, bfht->table[position].key))) {
             if (bfht->data_destroy)
                 bfht->data_destroy(bfht->table[position].data);
             bfht->table[position].data = data;
@@ -250,7 +253,7 @@ Bfht *bfht_create(cmp_func key_compare, del_func key_destroy, del_func data_dest
     // the table starts empty and on the first insert there is the real
     // allocation
     bfht->size = 0;
-#ifdef PRIME_SIZE
+#if HT_SIZE_TYPE == PRIMES
     bfht->primes_pos = 0;
 #else
     bfht->size_mask = 0;

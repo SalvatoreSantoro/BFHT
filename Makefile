@@ -3,24 +3,32 @@
 NAME:=bfht
 # useful: -Wpadded
 
-CC:=gcc
-DEFAULT_FLAGS:=-std=c99 -O2 -Wall -Wextra -Werror -pedantic
-CFLAGS:=$(DEFAULT_FLAGS) -DNDDEBUG
-CFLAGS_DEBUG:=$(DEFAULT_FLAGS) -g -DDEBUG
-TEST_CFLAGS:=$(CFLAGS_DEBUG) -fno-plt -fno-pie
-TEST_LDFLAGS:=-no-pie
+ALPHA?=
+PROBING?=
+HT_SIZE_TYPE?=
+HT_INITIAL_SIZE?=
+HT_SIZE_MAX_GROWINGS?=
 
+TUNING_FLAGS := \
+  $(if $(ALPHA),-DALPHA=$(ALPHA)) \
+  $(if $(PROBING),-DPROBING=$(PROBING)) \
+  $(if $(HT_SIZE_TYPE),-DHT_SIZE_TYPE=$(HT_SIZE_TYPE)) \
+  $(if $(HT_INITIAL_SIZE),-DHT_INITIAL_SIZE=$(HT_INITIAL_SIZE)) \
+  $(if $(HT_SIZE_MAX_GROWINGS),-DHT_SIZE_MAX_GROWINGS=$(HT_SIZE_MAX_GROWINGS))
+
+CC:=gcc
+DEFAULT_FLAGS:=-std=c99 -O3 -Wall -Wextra -Werror -pedantic $(TUNING_FLAGS)
+CFLAGS:=$(DEFAULT_FLAGS) -DNDDEBUG
+TEST_CFLAGS:=$(CFLAGS) -D_POSIX_C_SOURCE=200112L #time.h MONOTONIC CLOCK
 
 ### DIRECTORIES
 SRC_DIR := src
 BUILD_DIR := build
 TEST_DIR := test
 LIB_NAME := $(NAME).a
-LIB_NAME_DEBUG := $(NAME)_debug.a
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
-OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.d.o, $(SRCS))
 
 TEST_SRCS := $(wildcard $(TEST_DIR)/*.c)
 TEST_OBJS := $(patsubst $(TEST_DIR)/%.c, $(BUILD_DIR)/%.t.o, $(TEST_SRCS)) \
@@ -38,11 +46,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 
-### DEBUG
-debug: $(BUILD_DIR)/$(LIB_NAME_DEBUG)
-
-$(BUILD_DIR)/$(LIB_NAME_DEBUG): $(OBJS_DEBUG)
-	ar rcs $@ $^
 
 $(BUILD_DIR)/%.d.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS_DEBUG) -c $< -o $@
@@ -53,10 +56,16 @@ $(BUILD_DIR):
 	@"mkdir" $(BUILD_DIR)
 
 ### TEST TARGET
-test: $(TEST_OBJS)
-	$(CC) $(TEST_CFLAGS) $(TEST_LDFLAGS) $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
+test: build_tests
 	@echo "Running tests..."
-	$(BUILD_DIR)/test_binary
+	$(BUILD_DIR)/test_binary -t
+
+profiling: build_tests 
+	@echo "Running profiling..."
+	$(BUILD_DIR)/test_binary -p
+
+build_tests: $(TEST_OBJS)
+	$(CC) $(TEST_CFLAGS) $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
 
 $(BUILD_DIR)/%.t.o: $(TEST_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(TEST_CFLAGS) -c $< -o $@
@@ -68,11 +77,11 @@ $(BUILD_DIR)/%.t.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 ### SANITIZERS
 .PHONY: valgrind
 valgrind: test
-	valgrind --tool=memcheck --leak-check=full --track-origins=yes --main-stacksize=2000000000 -s $(BUILD_DIR)/test_binary
+	valgrind --tool=memcheck --leak-check=full --track-origins=yes -s $(BUILD_DIR)/test_binary
 
 .PHONY: asan
 asan: $(TEST_OBJS)
-	$(CC) $(TEST_CFLAGS) $(TEST_LDFLAGS) -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
+	$(CC) (TEST_CFLAGS) -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
 	@echo "Running tests..."
 	$(BUILD_DIR)/test_binary
 
