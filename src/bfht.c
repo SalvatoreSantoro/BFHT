@@ -1,29 +1,13 @@
 #include "../bfht.h"
+#include "hash.h"
 #include "macros.h"
 #include <assert.h>
-#include <ctype.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-uint32_t def_hash(const void *key) {
-    assert(key != NULL);
-
-    int c;
-    uint32_t hash = 5381;
-    const char *p = (char *) key;
-
-    while ((c = *p++)) {
-        if (isupper(c)) {
-            c = c + 32;
-        }
-        hash = ((hash << 5) + hash) + c;
-    }
-    return hash;
-}
 
 typedef struct {
     void *key;
@@ -216,7 +200,7 @@ int bfht_insert(Bfht *bfht, void *key, void *data) {
     // cap the size
     if ((bfht->occupied == bfht->occupied_upper_limit) && (EXPANDED_SIZE(bfht) <= HT_MAX_SIZE)) {
         new_size = EXPANDED_SIZE(bfht) > HT_MIN_SIZE ? EXPANDED_SIZE(bfht) : HT_MIN_SIZE;
-        //printf("INS RESIZE: NEW %ld, OLD %ld, MAX %ld\n", new_size, bfht->size, HT_MAX_SIZE);
+        // printf("INS RESIZE: NEW %ld, OLD %ld, MAX %ld\n", new_size, bfht->size, HT_MAX_SIZE);
         int ret = _bfht_resize(bfht, new_size);
         if (ret != BFHT_OK)
             ret = BFHT_INS_WRN;

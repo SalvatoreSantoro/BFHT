@@ -17,9 +17,9 @@ enum {
 
 // if undefined as default power of 2 sizes are used
 
-// POSSIBLE VALUES: [PRIMES, TWO_POWERS]
+// POSSIBLE VALUES: [PRIMES, TWOPOWERS]
 #ifndef HT_SIZE_TYPE
-    #define HT_SIZE_TYPE TWO_POWERS
+    #define HT_SIZE_TYPE TWOPOWERS
 #endif
 
 // NEED TO BE A POWER OF 2 (IGNORED IF COMPILING WITH "PRIME_SIZE")

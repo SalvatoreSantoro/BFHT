@@ -40,7 +40,7 @@
 
 // SIZE_TYPE
 #define PRIMES     1
-#define TWO_POWERS 0
+#define TWOPOWERS 0
 
 #if PROBING == LINEAR
     #define PROBE(h_k, i, ht) MODULO((h_k + i), ht)
@@ -67,7 +67,7 @@ static int __primes[26] = {0,         193,       389,       769,        1543,   
     #define MODULO(h, t)     (h % t->size)
     #define EXPANDED_SIZE(h) (__primes[h->primes_pos + 1])
     #define SHRINKED_SIZE(h) (__primes[h->primes_pos - 1])
-#elif HT_SIZE_TYPE == TWO_POWERS // power of 2 size
+#elif HT_SIZE_TYPE == TWOPOWERS // power of 2 size
     #define HT_MAX_SIZE      ((size_t)HT_INITIAL_SIZE << HT_SIZE_MAX_GROWINGS)
     #define HT_MIN_SIZE      (HT_INITIAL_SIZE)
     #define MODULO(h, t)     (h & t->size_mask)
