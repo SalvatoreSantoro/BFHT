@@ -38,8 +38,13 @@
 #define LINEAR    1
 #define QUADRATIC 0
 
+// HASHING
+#define FNV1a  0
+#define MURMUR 1
+#define DJB2   2
+
 // SIZE_TYPE
-#define PRIMES     1
+#define PRIMES    1
 #define TWOPOWERS 0
 
 #if PROBING == LINEAR
@@ -68,7 +73,7 @@ static int __primes[26] = {0,         193,       389,       769,        1543,   
     #define EXPANDED_SIZE(h) (__primes[h->primes_pos + 1])
     #define SHRINKED_SIZE(h) (__primes[h->primes_pos - 1])
 #elif HT_SIZE_TYPE == TWOPOWERS // power of 2 size
-    #define HT_MAX_SIZE      ((size_t)HT_INITIAL_SIZE << HT_SIZE_MAX_GROWINGS)
+    #define HT_MAX_SIZE      ((size_t) HT_INITIAL_SIZE << HT_SIZE_MAX_GROWINGS)
     #define HT_MIN_SIZE      (HT_INITIAL_SIZE)
     #define MODULO(h, t)     (h & t->size_mask)
     #define EXPANDED_SIZE(h) (h->size << 1)

@@ -13,6 +13,13 @@ enum {
 
 /**************** TUNABLES *****************/
 
+/**************** HASH *****************/
+
+#ifndef HASH_FUN
+#define HASH_FUN FNV1a
+#endif
+
+
 /****************** SIZE *******************/
 
 // if undefined as default power of 2 sizes are used

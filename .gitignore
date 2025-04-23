@@ -2,4 +2,5 @@ compile_commands.json
 build/
 .cache/
 .vscode/
-words/
+words/profiling
+words/test
