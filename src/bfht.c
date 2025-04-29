@@ -174,13 +174,6 @@ int bfht_remove(Bfht *bfht, void *key) {
     return BFHT_OK;
 }
 
-// Returns:
-// BFHT_OK if everything was ok
-// BFHT_UPDATE the inserted element was already inside, so the table updated the
-// data (the old pointed data is destroyed) BFHT_INS_WRN if successfully
-// inserted element but couldn't expand the hash table due to an Out of memory
-// retor BFHT_EOOM if couldn't insert the element (hash table is full and can't
-// expand further)
 
 int bfht_insert(Bfht *bfht, void *key, void *data) {
     size_t new_size;

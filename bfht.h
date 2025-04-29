@@ -13,12 +13,12 @@ enum {
 
 /**************** TUNABLES *****************/
 
-/**************** HASH *****************/
+/******************* HASH ******************/
 
+// POSSIBLE VALUES: [FNV1a,MURMUR, DJB2]
 #ifndef HASH_FUN
-#define HASH_FUN FNV1a
+#define HASH_FUN DJB2 
 #endif
-
 
 /****************** SIZE *******************/
 
@@ -63,6 +63,12 @@ typedef struct Bfht Bfht;
 typedef bool (*cmp_func)(const void *, const void *);
 typedef void (*del_func)(void *);
 
+// Returns:
+// BFHT_OK if everything was ok
+// BFHT_UPDATE the inserted element was already inside, so the table updated the
+// data (the old pointed data is destroyed)
+// BFHT_INS_WRN if successfully inserted the element but couldn't expand the hash table (memory is saturating)
+// BFHT_EOOM if couldn't insert the element (hash table is full and can't be expanded further)
 int bfht_insert(Bfht *bfht, void *key, void *data);
 
 int bfht_remove(Bfht *bfht, void *key);
