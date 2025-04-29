@@ -63,10 +63,20 @@ void bfht_destroy(Bfht *bfht);
 ```
 
 ## PROFILING
-
 To run the hash table profiling on a particular key dataset, you just need to place a file named "profiling" in the words folder.
+(at the moment the profiling should only work on Linux cause i used CLOCK_MONOTONIC for the measures)
+
 Then run "make profiling PROF_OFILE=[SOME_OUTPUT_FILE_NAME]" to just test the default values of the hash table or use the "profiling.py" (specifying -n as the number of measures repetitions) to test all the possible combinations of parameters in a GRID SEARCH.
-You'll get the measures and some pyplot graphs in the "./prof" folder (note that the script resets these folders every time it's run, so it's advised to save them somewhere to keep them in various profiling runs)
+You'll get the measures and some pyplot graphs in the "./prof" folder (note that the script resets these folders every time it's run, so it's advised to save them somewhere to keep them in various profiling runs).
+
+The real profiling code is "prof.c" in prof folder. The code just calculate the mean time to do a fixed number of lookups (1000) of random keys, given an hash table that contains an increasing number of keys.
+
 ![Alpha](./prof/images/alpha.png)
+![Hash](./prof/images/hash.png)
+![Probing](./prof/images/probing.png)
+![Max Growings](./prof/images/size_max_grow.png)
+![Size Types](./prof/images/size_type.png)
 
 ## TODO
+- Add AVX support for key lookup to increase performance
+
